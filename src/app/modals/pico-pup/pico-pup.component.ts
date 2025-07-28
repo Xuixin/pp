@@ -26,12 +26,26 @@ export class PicoPupComponent implements AfterViewInit, OnDestroy {
   private memory!: any;
   private isInitialized = false;
 
+  iouthreshold = 0.2;
+
+  private canvas!: HTMLCanvasElement;
+  private ctx!: CanvasRenderingContext2D;
+  private video!: HTMLVideoElement;
+
   constructor(private modalCtrl: ModalController) {}
 
   async ngAfterViewInit() {
     try {
       const canvas = this.canvasRef.nativeElement;
       const ctx = canvas.getContext('2d')!;
+
+      this.camvas = new Camvas(ctx, (video, dt) =>
+        this.detect(video, ctx, canvas)
+      );
+
+      this.canvas = canvas;
+      this.ctx = ctx;
+      this.video = this.camvas.video;
 
       await this.loadModels();
       this.memory = pico.instantiate_detection_memory(5);
@@ -47,6 +61,12 @@ export class PicoPupComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.camvas?.stop();
     this.isInitialized = false;
+  }
+
+  onThresholdChange() {
+    if (this.isInitialized && this.video && this.ctx && this.canvas) {
+      this.detect(this.video, this.ctx, this.canvas);
+    }
   }
 
   private async loadModels(): Promise<void> {
@@ -162,7 +182,7 @@ export class PicoPupComponent implements AfterViewInit, OnDestroy {
     });
 
     faces = this.memory(faces);
-    faces = pico.cluster_detections(faces, 0.2);
+    faces = pico.cluster_detections(faces, this.iouthreshold);
 
     // Draw results
     ctx.lineWidth = 3;

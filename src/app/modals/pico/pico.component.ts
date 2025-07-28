@@ -23,11 +23,20 @@ export class PicoComponent implements AfterViewInit, OnDestroy {
   private facefinder!: any;
   private memory!: any;
 
+  private canvas!: HTMLCanvasElement;
+  private ctx!: CanvasRenderingContext2D;
+  private video!: HTMLVideoElement;
+
+  iouthreshold = 0.2;
+
   constructor(private modalCtrl: ModalController) {}
 
   async ngAfterViewInit() {
     const canvas = this.canvasRef.nativeElement;
     const ctx = canvas.getContext('2d')!;
+
+    this.canvas = canvas;
+    this.ctx = ctx;
 
     const modelUrl =
       'https://raw.githubusercontent.com/nenadmarkus/pico/c2e81f9d23cc11d1a612fd21e4f9de0921a5d0d9/rnt/cascades/facefinder';
@@ -38,6 +47,8 @@ export class PicoComponent implements AfterViewInit, OnDestroy {
     this.camvas = new Camvas(ctx, (video, dt) =>
       this.detect(video, ctx, canvas)
     );
+
+    this.video = this.camvas.video;
 
     // รอให้ video โหลด metadata เพื่อให้รู้ขนาดจริง
     await new Promise<void>((resolve) => {
@@ -77,7 +88,7 @@ export class PicoComponent implements AfterViewInit, OnDestroy {
     });
 
     faces = this.memory(faces);
-    faces = pico.cluster_detections(faces, 0.2);
+    faces = pico.cluster_detections(faces, this.iouthreshold);
 
     for (const f of faces) {
       if (f[3] > 50) {
@@ -88,6 +99,12 @@ export class PicoComponent implements AfterViewInit, OnDestroy {
         ctx.strokeStyle = 'red';
         ctx.stroke();
       }
+    }
+  }
+
+  onThresholdChange() {
+    if (this.video && this.ctx && this.canvas) {
+      this.detect(this.video, this.ctx, this.canvas);
     }
   }
 

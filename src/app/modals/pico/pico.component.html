@@ -1,11 +1,25 @@
 <ion-content>
   <ion-header>
-    <ion-toolbar >
-<button ion-button icon-left  (click)="close()">
-  <ion-icon name="close-outline"></ion-icon>
-
-</button>
+    <ion-toolbar>
+      <button ion-button icon-left (click)="close()">
+        <ion-icon name="close-outline"></ion-icon>
+      </button>
     </ion-toolbar>
   </ion-header>
+
   <canvas #canvas></canvas>
+
+  <ion-item lines="full" class="threshold-input">
+    <ion-label position="stacked">IoU Threshold</ion-label>
+    <ion-input
+      type="number"
+      inputmode="decimal"
+      step="0.1"
+      min="0.1"
+      [(ngModel)]="iouthreshold"
+      (ngModelChange)="onThresholdChange()"
+      clearInput="true"
+      class="big-input"
+    ></ion-input>
+  </ion-item>
 </ion-content>
