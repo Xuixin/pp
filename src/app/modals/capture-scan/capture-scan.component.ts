@@ -5,8 +5,8 @@ import {
   AfterViewInit,
   OnDestroy,
 } from '@angular/core';
-import { CameraManagerService } from 'src/app/service/CameraManagerService/camera-manager.service';
-import { FaceDetectionService } from 'src/app/service/FaceDetectionService/face-detection-service.service';
+import { CameraManagerService } from '../../service/CameraManagerService/camera-manager.service';
+import { FaceDetectionService } from '../../service/FaceDetectionService/face-detection-service.service';
 import { ImageProcessingService } from '../../service/ImageProcessingService/image-processing-service.service';
 import { DetectionStatisticsService } from '../../service/DetectionStatisticsService/detection-statistics.service';
 import { ModalController } from '@ionic/angular';
