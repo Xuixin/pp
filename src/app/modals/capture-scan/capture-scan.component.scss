@@ -1,0 +1,356 @@
+// capture-scan.component.scss
+
+// Variables
+:host {
+  --scan-animation-duration: 2s;
+  --card-border-radius: 16px;
+  --stat-item-padding: 12px;
+}
+
+// Control section
+.control-card {
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  .control-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    ion-label h3 {
+      margin-bottom: 4px;
+      font-weight: 600;
+      color: var(--ion-color-dark);
+    }
+
+    ion-label p {
+      margin: 0;
+      color: var(--ion-color-medium);
+    }
+  }
+}
+
+// Camera section
+.camera-card {
+  margin-bottom: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  border-radius: var(--card-border-radius);
+  overflow: hidden;
+}
+
+.video-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.video-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.scan-frame {
+  width: 200px;
+  height: 200px;
+  border: 3px solid var(--ion-color-success);
+  border-radius: 50%;
+  opacity: 0.9;
+  animation: scanPulse var(--scan-animation-duration) ease-in-out infinite;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    height: 80%;
+    border: 1px solid var(--ion-color-success);
+    border-radius: 50%;
+    opacity: 0.5;
+  }
+}
+
+@keyframes scanPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+    border-width: 3px;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.7;
+    border-width: 2px;
+  }
+}
+
+// Image container
+.image-container {
+  width: 100%;
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ion-color-light-shade);
+  border-radius: var(--card-border-radius);
+  overflow: hidden;
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      45deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 70%
+    );
+    pointer-events: none;
+  }
+}
+
+.captured-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+// Capture button
+.capture-button {
+  margin: 20px 0;
+  height: 56px;
+  font-weight: 600;
+  --border-radius: 28px;
+  position: relative;
+  overflow: hidden;
+
+  &:not([disabled]) {
+    --background: linear-gradient(
+      135deg,
+      var(--ion-color-success) 0%,
+      var(--ion-color-success-shade) 100%
+    );
+
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+      );
+      transition: left 0.5s;
+    }
+
+    &:hover::before {
+      left: 100%;
+    }
+  }
+
+  &[disabled] {
+    --background: var(--ion-color-medium);
+    --color: var(--ion-color-medium-contrast);
+  }
+}
+
+// Results section
+.results-card {
+  margin-top: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+
+  ion-card-header {
+    padding-bottom: 8px;
+
+    ion-card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+      font-weight: 600;
+
+      ion-icon {
+        font-size: 20px;
+      }
+    }
+  }
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: var(--stat-item-padding);
+  background: var(--ion-color-light);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--ion-color-primary);
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+    &::before {
+      transform: scaleY(1);
+    }
+  }
+
+  ion-label {
+    flex: 1;
+
+    h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ion-color-dark);
+      line-height: 1.2;
+    }
+
+    p {
+      margin: 2px 0 0 0;
+      font-size: 12px;
+      color: var(--ion-color-medium);
+      line-height: 1.2;
+    }
+  }
+}
+
+.stat-badge {
+  font-size: 18px;
+  font-weight: 700;
+  min-width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    background: linear-gradient(
+      45deg,
+      transparent,
+      rgba(255, 255, 255, 0.3),
+      transparent
+    );
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  &:hover::after {
+    opacity: 1;
+  }
+}
+
+// Dark mode support
+@media (prefers-color-scheme: dark) {
+  .video-container {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  }
+
+  .scan-frame {
+    border-color: var(--ion-color-success-tint);
+  }
+
+  .image-container {
+    background: var(--ion-color-dark-tint);
+  }
+
+  .stat-item {
+    background: var(--ion-color-step-100);
+
+    &:hover {
+      background: var(--ion-color-step-150);
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: 480px) {
+  .video-container,
+  .image-container {
+    height: 250px;
+  }
+
+  .scan-frame {
+    width: 150px;
+    height: 150px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .stat-item {
+    padding: 10px;
+  }
+
+  .capture-button {
+    height: 48px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 320px) {
+  .video-container,
+  .image-container {
+    height: 200px;
+  }
+
+  .scan-frame {
+    width: 120px;
+    height: 120px;
+  }
+}

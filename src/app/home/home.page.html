@@ -1,5 +1,21 @@
-<!-- home.page.html -->
-<ion-content>
-  <ion-button (click)="openModal()">pico</ion-button>
-  <ion-button (click)="openModalpup()">Pico x pupil</ion-button>
+<ion-content class="ion-padding">
+  <div class="button-grid">
+    <!-- Pico Button -->
+    <div class="card-button pico-button" (click)="openModal()">
+      <ion-icon name="scan-outline"></ion-icon>
+      <p>Pico</p>
+    </div>
+
+    <!-- Pico x Pupil Button -->
+    <div class="card-button pupil-button" (click)="openModalpup()">
+      <ion-icon name="eye-outline"></ion-icon>
+      <p>Pico x pupil</p>
+    </div>
+
+    <!-- Capture + Scan Button -->
+    <div class="card-button scan-button" (click)="openScanCap()">
+      <ion-icon name="camera-outline"></ion-icon>
+      <p>Capture + Scan</p>
+    </div>
+  </div>
 </ion-content>

@@ -1,0 +1,115 @@
+<!-- capture-scan.component.html -->
+<ion-header class="ion-no-border">
+  <ion-toolbar color="primary">
+    <ion-title>Face Detection Scanner</ion-title>
+    <ion-buttons slot="end">
+      <ion-button fill="clear" (click)="closeModal()">
+        <ion-icon name="close" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <!-- IoU Control Card -->
+  <ion-card class="control-card">
+    <ion-card-content>
+      <div class="control-section">
+        <ion-label>
+          <h3>Detection Sensitivity</h3>
+          <p>
+            IoU Threshold: <strong>{{ iouThreshold.toFixed(2) }}</strong>
+          </p>
+        </ion-label>
+        <ion-range
+          [(ngModel)]="iouThreshold"
+          min="0.1"
+          max="1"
+          step="0.05"
+          color="secondary"
+          pin="true"
+        >
+          <ion-icon name="aperture-outline" slot="start"></ion-icon>
+          <ion-icon name="aperture" slot="end"></ion-icon>
+        </ion-range>
+      </div>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- Camera Section -->
+  <ion-card class="camera-card">
+    <ion-card-content class="ion-no-padding">
+      <!-- Live Video Feed -->
+      <div class="video-container" *ngIf="!isCaptured">
+        <video
+          #videoEl
+          autoplay
+          muted
+          playsinline
+          class="video-preview"
+        ></video>
+        <div class="video-overlay">
+          <div class="scan-frame"></div>
+        </div>
+      </div>
+
+      <!-- Captured Image -->
+      <div class="image-container" *ngIf="capturedImage">
+        <img
+          [src]="capturedImage"
+          class="captured-image"
+          alt="Captured face detection result"
+        />
+      </div>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- Capture Button -->
+  <ion-button
+    expand="block"
+    size="large"
+    color="success"
+    class="capture-button"
+    (click)="onCapture()"
+    [disabled]="isCaptured"
+    style="color: white"
+  >
+    <ion-icon name="camera" slot="start"></ion-icon>
+    {{ isCaptured ? "Image Captured" : "Capture Photo" }}
+  </ion-button>
+
+  <!-- Results Card -->
+  <ion-card class="results-card" *ngIf="capturedImage">
+    <ion-card-header>
+      <ion-card-title color="primary">
+        <ion-icon name="analytics-outline"></ion-icon>
+        Detection Results
+      </ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <ion-badge color="success" class="stat-badge">{{
+            currentCount
+          }}</ion-badge>
+          <ion-label>
+            <h3>Faces Detected</h3>
+            <p>Current scan</p>
+          </ion-label>
+        </div>
+        <div class="stat-item">
+          <ion-badge color="primary" class="stat-badge">{{
+            maxCount
+          }}</ion-badge>
+          <ion-label>
+            <h3>Maximum Found</h3>
+            <p>Best result</p>
+          </ion-label>
+        </div>
+      </div>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- Hidden Canvas -->
+  <canvas #canvasEl [width]="640" [height]="480" style="display: none"></canvas>
+</ion-content>

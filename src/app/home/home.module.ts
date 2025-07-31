@@ -7,9 +7,10 @@ import { HomePage } from './home.page';
 import { HomePageRoutingModule } from './home-routing.module';
 import { PicoComponent } from '../modals/pico/pico.component';
 import { PicoPupComponent } from '../modals/pico-pup/pico-pup.component';
+import { CaptureScanComponent } from '../modals/capture-scan/capture-scan.component';
 
 @NgModule({
   imports: [CommonModule, FormsModule, IonicModule, HomePageRoutingModule],
-  declarations: [HomePage, PicoComponent, PicoPupComponent],
+  declarations: [HomePage, PicoComponent, PicoPupComponent, CaptureScanComponent],
 })
 export class HomePageModule {}

@@ -1,24 +1,68 @@
-<ion-content>
-  <ion-header>
-    <ion-toolbar>
-      <button ion-button icon-left (click)="close()">
-        <ion-icon name="close-outline"></ion-icon>
-      </button>
-    </ion-toolbar>
-  </ion-header>
-  <canvas #canvas></canvas>
+<ion-content class="clean-content">
+  <!-- Header -->
+  <div class="clean-header">
+    <ion-button
+      fill="clear"
+      color="medium"
+      (click)="closeModal()"
+      class="close-button"
+    >
+      <ion-icon name="close" slot="icon-only"></ion-icon>
+    </ion-button>
+  </div>
 
-  <ion-item lines="full" class="threshold-input">
-    <ion-label position="stacked">IoU Threshold</ion-label>
-    <ion-input
-      type="number"
-      inputmode="decimal"
-      step="0.1"
-      min="0.1"
-      [(ngModel)]="iouthreshold"
-      (ngModelChange)="onThresholdChange()"
-      clearInput="true"
-      class="big-input"
-    ></ion-input>
-  </ion-item>
+  <!-- Canvas Container -->
+  <div class="canvas-container">
+    <canvas #canvas class="detection-canvas"></canvas>
+  </div>
+
+  <!-- Info Section -->
+  <div class="info-section">
+    <!-- Current Face Count -->
+    <div class="info-row">
+      <span class="info-label">Detected faces</span>
+      <span class="info-value">{{ currentFaceCount }}</span>
+    </div>
+
+    <!-- Max Faces -->
+    <div class="info-row">
+      <span class="info-label">Max faces ({{ iouThreshold.toFixed(2) }})</span>
+      <span class="info-value">{{
+        maxFaceCountByThreshold[iouThreshold.toFixed(2)] || 0
+      }}</span>
+    </div>
+
+    <!-- Threshold Input -->
+    <div class="threshold-section">
+      <ion-label class="threshold-label">IoU Threshold</ion-label>
+      <ion-input
+        type="number"
+        inputmode="decimal"
+        step="0.1"
+        min="0.1"
+        [(ngModel)]="iouThreshold"
+        (ngModelChange)="onThresholdChange()"
+        fill="outline"
+        class="threshold-input"
+        placeholder="0.5"
+      >
+      </ion-input>
+    </div>
+  </div>
+
+  <div
+    class="faces-section"
+    *ngIf="croppedFaceImages && croppedFaceImages.length > 0"
+  >
+    <div class="section-title">Detected Faces</div>
+
+    <!-- Single Face Display -->
+    <div *ngIf="croppedFaceImages.length === 1" class="single-face-container">
+      <img
+        [src]="croppedFaceImages[0]"
+        alt="Detected Face"
+        class="single-face-image"
+      />
+    </div>
+  </div>
 </ion-content>

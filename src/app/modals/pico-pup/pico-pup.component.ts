@@ -5,11 +5,13 @@ import {
   ViewChild,
   ElementRef,
 } from '@angular/core';
-import { Camvas } from './../../utils/camvas';
 import { ModalController } from '@ionic/angular';
-
-declare var pico: any;
-declare var lploc: any;
+import { FaceDetectionService } from '../../service/FaceDetectionService/face-detection-service.service';
+import { PupilDetectionService } from '../../service/PupilDetectionService/pupil-detection-service.service';
+import { ImageProcessingService } from '../../service/ImageProcessingService/image-processing-service.service';
+import { CanvasRendererService } from '../../service/CanvasRendererService/canvas-renderer.service';
+import { CameraManagerService } from '../../service/CameraManagerService/camera-manager.service';
+import { DetectionStatisticsService } from '../../service/DetectionStatisticsService/detection-statistics.service';
 
 @Component({
   selector: 'app-pico',
@@ -20,357 +22,190 @@ declare var lploc: any;
 export class PicoPupComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
 
-  private camvas!: Camvas;
-  private facefinder!: any;
-  private doPuploc!: any;
-  private memory!: any;
-  private isInitialized = false;
-
-  iouthreshold = 0.2;
-
   private canvas!: HTMLCanvasElement;
-  private ctx!: CanvasRenderingContext2D;
-  private video!: HTMLVideoElement;
+  private canvasContext!: CanvasRenderingContext2D;
+  private isSystemInitialized = false;
 
-  constructor(private modalCtrl: ModalController) {}
+  // Detection settings
+  public iouThreshold = 0.2;
 
-  async ngAfterViewInit() {
+  // Capture logic
+  private startTime: number = 0;
+  private validStartTime: number | null = null;
+  private faceValidationPassed: boolean = true;
+  private readonly IDLE_TIME_MS = 3000;
+  private readonly EVALUATION_WINDOW_MS = 5000;
+  public croppedFaceImages: string[] = [];
+  private hasCaptured = false;
+
+  constructor(
+    private modalController: ModalController,
+    private faceDetectionService: FaceDetectionService,
+    private pupilDetectionService: PupilDetectionService,
+    private imageProcessingService: ImageProcessingService,
+    private canvasRendererService: CanvasRendererService,
+    private cameraManagerService: CameraManagerService,
+    public detectionStatisticsService: DetectionStatisticsService
+  ) {}
+
+  async ngAfterViewInit(): Promise<void> {
     try {
-      const canvas = this.canvasRef.nativeElement;
-      const ctx = canvas.getContext('2d')!;
-
-      this.camvas = new Camvas(ctx, (video, dt) =>
-        this.detect(video, ctx, canvas)
-      );
-
-      this.canvas = canvas;
-      this.ctx = ctx;
-      this.video = this.camvas.video;
-
-      await this.loadModels();
-      this.memory = pico.instantiate_detection_memory(5);
-      await this.initializeCamera(ctx, canvas);
-
-      this.isInitialized = true;
-      console.log('PicoPup initialized successfully');
+      await this.initializeSystem();
+      console.log('PicoPup system initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize PicoPup:', error);
+      console.error('Failed to initialize PicoPup system:', error);
     }
   }
 
   ngOnDestroy(): void {
-    this.camvas?.stop();
-    this.isInitialized = false;
+    this.cleanupResources();
   }
 
-  onThresholdChange() {
-    if (this.isInitialized && this.video && this.ctx && this.canvas) {
-      this.detect(this.video, this.ctx, this.canvas);
-    }
+  private async initializeSystem(): Promise<void> {
+    this.setupCanvasElements();
+    await this.loadDetectionModels();
+    await this.setupCameraStream();
+    this.isSystemInitialized = true;
   }
 
-  private async loadModels(): Promise<void> {
-    try {
-      // ตรวจสอบ libraries
-      if (typeof pico === 'undefined') {
-        throw new Error('pico library not loaded');
-      }
-      if (typeof lploc === 'undefined') {
-        throw new Error('lploc library not loaded');
-      }
-
-      // Face detection model
-      console.log('Loading face detection model...');
-      const faceModelUrl =
-        'https://raw.githubusercontent.com/nenadmarkus/pico/c2e81f9d23cc11d1a612fd21e4f9de0921a5d0d9/rnt/cascades/facefinder';
-      const faceResponse = await fetch(faceModelUrl);
-      if (!faceResponse.ok)
-        throw new Error(`Failed to load face model: ${faceResponse.status}`);
-      const faceBuffer = await faceResponse.arrayBuffer();
-      this.facefinder = pico.unpack_cascade(new Int8Array(faceBuffer));
-      console.log('Face detection model loaded successfully');
-
-      // Pupil localization model
-      console.log('Loading pupil localization model...');
-      const pupilModelUrl = 'assets/models/puploc.bin';
-      const pupilResponse = await fetch(pupilModelUrl);
-      if (!pupilResponse.ok) {
-        console.error(`Failed to load pupil model: ${pupilResponse.status}`);
-        console.log('Make sure puploc.bin exists in assets/models/');
-        throw new Error(`Failed to load pupil model: ${pupilResponse.status}`);
-      }
-
-      const pupilBuffer = await pupilResponse.arrayBuffer();
-      console.log(`Pupil model buffer size: ${pupilBuffer.byteLength} bytes`);
-
-      if (pupilBuffer.byteLength === 0) {
-        throw new Error('Pupil model file is empty');
-      }
-
-      // ตรวจสอบ lploc.unpack_localizer
-      if (typeof lploc.unpack_localizer !== 'function') {
-        throw new Error('lploc.unpack_localizer is not a function');
-      }
-
-      this.doPuploc = lploc.unpack_localizer(new Int8Array(pupilBuffer));
-
-      if (!this.doPuploc || typeof this.doPuploc !== 'function') {
-        throw new Error('Failed to unpack pupil localizer');
-      }
-
-      console.log('Pupil localization model loaded successfully');
-      console.log('doPuploc function type:', typeof this.doPuploc);
-    } catch (error) {
-      console.error('Error in loadModels:', error);
-      throw error;
-    }
+  get currentFaceCount(): number {
+    return this.detectionStatisticsService.currentFaceCount;
   }
 
-  private async initializeCamera(
-    ctx: CanvasRenderingContext2D,
-    canvas: HTMLCanvasElement
-  ): Promise<void> {
-    this.camvas = new Camvas(ctx, (video, dt) =>
-      this.detect(video, ctx, canvas)
+  get maxFaceCountByThreshold(): { [threshold: string]: number } {
+    return this.detectionStatisticsService.maxFaceCountByThreshold;
+  }
+
+  private setupCanvasElements(): void {
+    this.canvas = this.canvasRef.nativeElement;
+    this.canvasContext = this.canvas.getContext('2d')!;
+  }
+
+  private async loadDetectionModels(): Promise<void> {
+    await Promise.all([
+      this.faceDetectionService.initialize(),
+      this.pupilDetectionService.initialize(),
+    ]);
+  }
+
+  private async setupCameraStream(): Promise<void> {
+    await this.cameraManagerService.initialize(
+      this.canvasContext,
+      (video, dt) => this.processVideoFrame(video)
     );
-
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(
-        () => reject(new Error('Camera timeout')),
-        10000
-      );
-      this.camvas.video.onloadedmetadata = () => {
-        clearTimeout(timeout);
-        resolve();
-      };
-    });
-
-    canvas.width = this.camvas.videoWidth;
-    canvas.height = this.camvas.videoHeight;
+    this.adjustCanvasToVideoSize();
   }
 
-  private detect(
-    video: HTMLVideoElement,
-    ctx: CanvasRenderingContext2D,
-    canvas: HTMLCanvasElement
-  ) {
-    if (!this.isInitialized) return;
+  private adjustCanvasToVideoSize(): void {
+    this.canvas.width = this.cameraManagerService.videoWidth;
+    this.canvas.height = this.cameraManagerService.videoHeight;
+  }
 
-    const w = canvas.width;
-    const h = canvas.height;
+  private processVideoFrame(video: HTMLVideoElement): void {
+    if (!this.isSystemInitialized || this.hasCaptured) return;
+
     const startTime = performance.now();
 
-    // Clear canvas
-    ctx.clearRect(0, 0, w, h);
-
-    // Draw mirrored video
-    ctx.save();
-    ctx.scale(-1, 1);
-    ctx.drawImage(video, -w, 0, w, h);
-    ctx.restore();
-
-    // Get image data from displayed canvas (already mirrored)
-    const imageData = ctx.getImageData(0, 0, w, h);
-    const gray = this.toGrayscale(imageData);
-
-    // Detect faces
-    let faces = pico.run_cascade(gray, this.facefinder, {
-      shiftfactor: 0.1,
-      scalefactor: 1.1,
-      minsize: 100,
-      maxsize: 1000,
-    });
-
-    faces = this.memory(faces);
-    faces = pico.cluster_detections(faces, this.iouthreshold);
-
-    // Draw results
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = 'red';
-    ctx.font = '14px Arial';
-    ctx.fillStyle = 'red';
-
-    for (const face of faces) {
-      if (face[3] > 50) {
-        this.drawFaceResults(ctx, face, gray, w, h);
-      }
-    }
-
-    // แสดง Process time
-    const endTime = performance.now();
-    const processTime = (endTime - startTime).toFixed(1);
-    ctx.fillStyle = 'yellow';
-    ctx.font = '18px Arial';
-    ctx.fillText(`Process time: ${processTime} ms`, 10, 25);
-  }
-
-  private drawFaceResults(
-    ctx: CanvasRenderingContext2D,
-    face: any[],
-    gray: any,
-    canvasWidth: number,
-    canvasHeight: number
-  ) {
-    const [r, c, s] = face; // y, x, size
-
-    // Face circle
-    ctx.beginPath();
-    ctx.arc(c, r, s / 2, 0, 2 * Math.PI);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'red';
-    ctx.stroke();
-
-    // แสดง Size และ Position เหมือน OpenCamIplocComponent
-    const textSize = `Size: ${Math.round(s)} px`;
-    const textPos = `Pos: (${Math.round(c)}, ${Math.round(r)})`;
-
-    const padding = 4;
-    const metrics1 = ctx.measureText(textSize);
-    const metrics2 = ctx.measureText(textPos);
-    const textHeight = 16;
-
-    // วาดพื้นหลังโปร่งแสงสำหรับข้อความ
-    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-    ctx.fillRect(
-      c - s / 2,
-      r - s / 2 - textHeight * 2 - padding * 2,
-      metrics1.width + padding * 2,
-      textHeight + padding
+    this.canvasRendererService.clearAndDrawMirroredVideo(
+      this.canvasContext,
+      this.canvas,
+      video
     );
-    ctx.fillRect(
-      c - s / 2,
-      r - s / 2 - textHeight - padding,
-      metrics2.width + padding * 2,
-      textHeight + padding
+    const grayImageData = this.imageProcessingService.extractGrayscaleImageData(
+      this.canvasContext,
+      this.canvas
+    );
+    const detectedFaces = this.faceDetectionService.detectFaces(
+      grayImageData,
+      this.iouThreshold
     );
 
-    // วาดข้อความสีขาว
-    ctx.fillStyle = 'white';
-    ctx.fillText(
-      textSize,
-      c - s / 2 + padding,
-      r - s / 2 - textHeight * 2 + 12
-    );
-    ctx.fillText(textPos, c - s / 2 + padding, r - s / 2 - textHeight + 12);
+    this.handleCaptureLogic(detectedFaces);
 
-    // Detect pupils
-    this.detectPupil(ctx, r, c, s, -0.175, gray, canvasWidth, canvasHeight); // Left eye
-    this.detectPupil(ctx, r, c, s, 0.175, gray, canvasWidth, canvasHeight); // Right eye
-  }
-
-  private detectPupil(
-    ctx: CanvasRenderingContext2D,
-    faceR: number,
-    faceC: number,
-    faceS: number,
-    eyeOffset: number,
-    gray: any,
-    canvasWidth: number,
-    canvasHeight: number
-  ) {
-    // ตรวจสอบว่า doPuploc พร้อมใช้งาน
-    if (!this.doPuploc || typeof this.doPuploc !== 'function') {
-      console.log('doPuploc not available');
-      return;
-    }
-
-    const eyeR = Math.round(faceR - 0.075 * faceS);
-    const eyeC = Math.round(faceC + eyeOffset * faceS);
-    const eyeS = Math.round(0.35 * faceS);
-
-    // ตรวจสอบขอบเขต
-    if (
-      eyeR < 0 ||
-      eyeC < 0 ||
-      eyeR >= canvasHeight ||
-      eyeC >= canvasWidth ||
-      eyeS <= 0
-    ) {
-      console.log('Eye parameters out of bounds or invalid');
-      return;
-    }
-
-    // ตรวจสอบ gray data
-    if (
-      !gray.pixels ||
-      !gray.pixels.length ||
-      !Number.isInteger(gray.nrows) ||
-      !Number.isInteger(gray.ncols) ||
-      !Number.isInteger(gray.ldim)
-    ) {
-      console.log('Invalid gray data:', gray);
-      return;
-    }
-
-    try {
-      // เรียกใช้ doPuploc แบบเดียวกับ OpenCamIplocComponent
-      const result = this.doPuploc(
-        eyeR, // number: row
-        eyeC, // number: col
-        eyeS, // number: scale
-        63, // number: nperturbs
-        gray // image object (ส่ง gray object ทั้งหมด)
+    if (!this.hasCaptured) {
+      this.canvasRendererService.renderDetectionResults(
+        this.canvasContext,
+        detectedFaces,
+        grayImageData,
+        this.canvas
       );
+      this.detectionStatisticsService.updateStatistics(
+        detectedFaces,
+        this.iouThreshold
+      );
+      this.canvasRendererService.displayProcessingTime(
+        this.canvasContext,
+        startTime
+      );
+    }
+  }
 
-      if (Array.isArray(result) && result.length >= 2) {
-        const [pr, pc] = result;
+  private handleCaptureLogic(detectedFaces: any[]): void {
+    const now = performance.now();
 
-        if (
-          typeof pr === 'number' &&
-          typeof pc === 'number' &&
-          pr >= 0 &&
-          pc >= 0 &&
-          pr < canvasHeight &&
-          pc < canvasWidth
-        ) {
-          ctx.beginPath();
-          ctx.arc(pc, pr, 2, 0, 2 * Math.PI);
-          ctx.strokeStyle = 'red';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        } else {
-          console.log('Pupil not detected or invalid coordinates');
-        }
-      } else {
-        console.log('Invalid doPuploc result format:', result);
+    if (this.startTime === 0) {
+      this.startTime = now;
+    }
+
+    if (now - this.startTime > this.IDLE_TIME_MS) {
+      const maxFace = this.detectionStatisticsService.getMaxFaceCount(
+        this.iouThreshold
+      );
+      const threshold = Math.floor(maxFace / 2);
+
+      if (this.validStartTime === null) {
+        this.validStartTime = now;
+        this.faceValidationPassed = true;
       }
-    } catch (error: any) {
-      console.error('Pupil detection error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        eyeParams: { eyeR, eyeC, eyeS },
-        grayInfo: {
-          pixelsType: typeof gray.pixels,
-          pixelsLength: gray.pixels?.length,
-          nrows: gray.nrows,
-          ncols: gray.ncols,
-          ldim: gray.ldim,
-        },
-      });
+
+      if (detectedFaces.length < threshold) {
+        this.validStartTime = null;
+        this.faceValidationPassed = false;
+        console.log('เฟรมไม่ผ่านเงื่อนไข > ครึ่ง, เริ่มนับใหม่');
+      } else {
+        if (
+          now - this.validStartTime >= this.EVALUATION_WINDOW_MS &&
+          this.faceValidationPassed
+        ) {
+          console.log('✔ ครบ 5 วิ เฟรมนี้ผ่านทั้งหมด, crop เฟรมนี้เลย');
+          this.croppedFaceImages = this.imageProcessingService.captureFaces(
+            this.canvas,
+            detectedFaces
+          );
+          this.hasCaptured = true;
+          this.cameraManagerService.stop();
+          return;
+        }
+      }
     }
   }
 
-  private toGrayscale(imageData: ImageData) {
-    const { width, height, data } = imageData;
-    const gray = new Uint8Array(width * height);
-
-    // ใช้ formula เดียวกับ OpenCamIplocComponent
-    for (let i = 0; i < gray.length; i++) {
-      const r = data[i * 4];
-      const g = data[i * 4 + 1];
-      const b = data[i * 4 + 2];
-      gray[i] = Math.round((2 * r + 7 * g + 1 * b) / 10);
+  public onThresholdChange(): void {
+    if (this.isSystemReady()) {
+      this.processVideoFrame(this.cameraManagerService.videoElement);
     }
-
-    return {
-      pixels: gray,
-      nrows: height,
-      ncols: width,
-      ldim: width,
-    };
   }
 
-  close() {
-    this.modalCtrl.dismiss();
+  private isSystemReady(): boolean {
+    return (
+      this.isSystemInitialized &&
+      this.cameraManagerService.videoElement != null &&
+      this.canvasContext != null &&
+      this.canvas != null
+    );
+  }
+
+  private cleanupResources(): void {
+    this.cameraManagerService.cleanup();
+    this.imageProcessingService.cleanup();
+    this.faceDetectionService.cleanup();
+    this.pupilDetectionService.cleanup();
+    this.detectionStatisticsService.reset();
+    this.isSystemInitialized = false;
+  }
+
+  public closeModal(): void {
+    this.cameraManagerService.stop();
+    this.modalController.dismiss();
   }
 }
