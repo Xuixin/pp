@@ -58,6 +58,9 @@ export class CaptureScanComponent implements AfterViewInit, OnDestroy {
     const context = this.ctx;
     const video = this.videoRef.nativeElement;
 
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
     // Capture frame
     context.save();
     context.translate(canvas.width, 0);

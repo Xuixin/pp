@@ -293,6 +293,16 @@
   }
 }
 
+.image-container {
+  aspect-ratio: 4 / 3; // ✅ บังคับ container เป็นสัดส่วนเดียวกับ canvas
+}
+
+.captured-image {
+  width: 100%;
+  height: auto;
+  object-fit: contain; // ✅ ป้องกันบิด
+}
+
 // Dark mode support
 @media (prefers-color-scheme: dark) {
   .video-container {
