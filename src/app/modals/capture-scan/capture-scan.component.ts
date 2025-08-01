@@ -24,14 +24,16 @@ export class CaptureScanComponent implements AfterViewInit, OnDestroy {
   canvasRef!: ElementRef<HTMLCanvasElement>;
 
   capturedImage: string | null = null;
+  maxCapturedImage: string | null = null; // ⬅️ รูปที่ตรวจพบหน้าสูงสุด
   detectedFaces: any[] = [];
   currentCount = 0;
   maxCount = 0;
   iouThreshold = 0.2;
-
   isCaptured = false;
+  showCaptureImg = false;
 
   private ctx!: CanvasRenderingContext2D;
+  private captureInterval: any;
 
   constructor(
     private cameraService: CameraManagerService,
@@ -45,12 +47,12 @@ export class CaptureScanComponent implements AfterViewInit, OnDestroy {
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d')!;
 
-    await this.cameraService.initialize(this.ctx, () => {
-      // ยังไม่ต้อง detect
-    });
-
+    await this.cameraService.initialize(this.ctx, () => {});
     this.videoRef.nativeElement.srcObject =
       this.cameraService.videoElement.srcObject;
+
+    // เริ่ม capture ทุก 100 มิลลิวินาที
+    this.captureInterval = setInterval(() => this.onCapture(), 100);
   }
 
   async onCapture(): Promise<void> {
@@ -58,20 +60,9 @@ export class CaptureScanComponent implements AfterViewInit, OnDestroy {
     const context = this.ctx;
     const video = this.videoRef.nativeElement;
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    // Capture frame
-    context.save();
-    context.translate(canvas.width, 0);
-    context.scale(1, 1);
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    context.restore();
-
     this.isCaptured = true;
-    this.cameraService.stop();
 
-    // ตรวจจับ
     const gray = this.imageProcessing.extractGrayscaleImageData(
       context,
       canvas
@@ -82,26 +73,10 @@ export class CaptureScanComponent implements AfterViewInit, OnDestroy {
       this.iouThreshold
     );
 
-    // 🎯 วาดวงกลมลง canvas
-    this.drawFaceCircles(context, this.detectedFaces);
-
-    // แปลง canvas เป็นรูป
-    this.capturedImage = canvas.toDataURL('image/png');
-
-    // สถิติ
-    this.detectionStats.updateStatistics(this.detectedFaces, this.iouThreshold);
-    this.currentCount = this.detectionStats.currentFaceCount;
-    this.maxCount = this.detectionStats.getMaxFaceCount(this.iouThreshold);
-  }
-
-  private drawFaceCircles(
-    context: CanvasRenderingContext2D,
-    faces: any[]
-  ): void {
+    // วาดวงกลม
     context.lineWidth = 2;
     context.strokeStyle = 'red';
-
-    for (const face of faces) {
+    for (const face of this.detectedFaces) {
       const [row, col, size, score] = face;
       if (score > 0.0) {
         context.beginPath();
@@ -109,9 +84,22 @@ export class CaptureScanComponent implements AfterViewInit, OnDestroy {
         context.stroke();
       }
     }
+
+    this.capturedImage = canvas.toDataURL('image/png');
+
+    // อัปเดตสถิติ
+    this.detectionStats.updateStatistics(this.detectedFaces, this.iouThreshold);
+    this.currentCount = this.detectionStats.currentFaceCount;
+
+    // ถ้ามีใบหน้ามากกว่าก่อนหน้า → เก็บรูปนี้ไว้
+    if (this.currentCount > this.maxCount) {
+      this.maxCount = this.currentCount;
+      this.maxCapturedImage = this.capturedImage;
+    }
   }
 
   ngOnDestroy(): void {
+    clearInterval(this.captureInterval);
     this.cameraService.cleanup();
     this.faceDetection.cleanup();
     this.imageProcessing.cleanup();

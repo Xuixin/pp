@@ -40,7 +40,7 @@
   <ion-card class="camera-card">
     <ion-card-content class="ion-no-padding">
       <!-- Live Video Feed -->
-      <div class="video-container" *ngIf="!isCaptured">
+      <div class="video-container">
         <video
           #videoEl
           autoplay
@@ -54,7 +54,7 @@
       </div>
 
       <!-- Captured Image -->
-      <div class="image-container" *ngIf="capturedImage">
+      <div class="image-container" *ngIf="capturedImage && showCaptureImg">
         <img
           [src]="capturedImage"
           class="captured-image"
@@ -64,19 +64,9 @@
     </ion-card-content>
   </ion-card>
 
-  <!-- Capture Button -->
-  <ion-button
-    expand="block"
-    size="large"
-    color="success"
-    class="capture-button"
-    (click)="onCapture()"
-    [disabled]="isCaptured"
-    style="color: white"
-  >
-    <ion-icon name="camera" slot="start"></ion-icon>
-    {{ isCaptured ? "Image Captured" : "Capture Photo" }}
-  </ion-button>
+  <div *ngIf="maxCapturedImage" class="image-container">
+    <img [src]="maxCapturedImage" alt="Best Capture" class="captured-image" />
+  </div>
 
   <!-- Results Card -->
   <ion-card class="results-card" *ngIf="capturedImage">
