@@ -54,19 +54,19 @@
       </div>
 
       <!-- Captured Image -->
-      <div class="image-container" *ngIf="capturedImage && showCaptureImg">
+      <div class="image-container" *ngIf="capturedImage">
         <img
-          [src]="capturedImage"
+          [src]="maxCapturedImage"
+          alt="Best Capture"
           class="captured-image"
-          alt="Captured face detection result"
         />
       </div>
     </ion-card-content>
   </ion-card>
 
-  <div *ngIf="maxCapturedImage" class="image-container">
-    <img [src]="maxCapturedImage" alt="Best Capture" class="captured-image" />
-  </div>
+  <!-- <div *ngIf="maxCapturedImage" class="image-container">
+
+  </div> -->
 
   <!-- Results Card -->
   <ion-card class="results-card" *ngIf="capturedImage">
