@@ -64,7 +64,7 @@ export class CaptureScanComponent implements AfterViewInit, OnDestroy {
     // Capture frame
     context.save();
     context.translate(canvas.width, 0);
-    context.scale(-1, 1);
+    context.scale(1, 1);
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     context.restore();
 
