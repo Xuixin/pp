@@ -5,7 +5,7 @@ import { GrayImageData } from 'src/app/data/model';
 declare var pico: any;
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class FaceDetectionService {
   private constants = new Constants();
@@ -46,7 +46,10 @@ export class FaceDetectionService {
     });
 
     faces = this.detectionMemory(faces);
-    return pico.cluster_detections(faces, iouThreshold);
+    const clustered = pico.cluster_detections(faces, iouThreshold);
+
+    // 🔥 เพิ่มตรงนี้: กรองเฉพาะ face ที่ score > 50.0
+    return clustered.filter((face: any) => face[3] > 50.0);
   }
 
   cleanup(): void {

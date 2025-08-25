@@ -40,33 +40,35 @@
   <ion-card class="camera-card">
     <ion-card-content class="ion-no-padding">
       <!-- Live Video Feed -->
-      <div class="video-container">
+      <div class="video-container" style="display: none">
         <video
           #videoEl
           autoplay
           muted
           playsinline
-          class="video-preview"
+          class="video-preview hidden"
+          style="display: none"
         ></video>
-        <div class="video-overlay">
+        <!-- <div class="video-overlay">
           <div class="scan-frame"></div>
-        </div>
+        </div> -->
       </div>
 
       <!-- Captured Image -->
       <div class="image-container" *ngIf="capturedImage">
         <img
-          [src]="maxCapturedImage"
-          alt="Best Capture"
+          [src]="capturedImage"
           class="captured-image"
+          alt="Captured face detection result"
+          style="transform: scaleX(-1)"
         />
       </div>
     </ion-card-content>
   </ion-card>
 
-  <!-- <div *ngIf="maxCapturedImage" class="image-container">
-
-  </div> -->
+  <div *ngIf="maxCapturedImage" class="image-container">
+    <img [src]="maxCapturedImage" alt="perfectimge" />
+  </div>
 
   <!-- Results Card -->
   <ion-card class="results-card" *ngIf="capturedImage">
